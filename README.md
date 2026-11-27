@@ -1,2 +1,52 @@
 # template-web
-Next.js + Supabase starter
+
+A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email and password auth through Supabase, row level security on a `profiles` table, and GitHub Actions that provision and deploy to Vercel.
+
+## What is here
+
+- `src/app` has the public home page, `/login` for sign in and sign up, and `/dashboard` as the protected page.
+- `src/lib/supabase/client.ts` creates the browser client for Client Components.
+- `src/lib/supabase/server.ts` creates a request-scoped server client for Server Components, Server Actions and Route Handlers.
+- `src/proxy.ts` refreshes the Supabase session on every request and redirects unauthenticated users from `/dashboard` to `/login`.
+- `supabase/migrations` holds the schema, applied with `supabase db push`.
+- `.github/workflows/bootstrap.yml` provisions the Vercel and Supabase projects once.
+- `.github/workflows/deploy.yml` applies migrations and deploys on every push to `main`.
+
+## Local setup
+
+1. Run `pnpm install`.
+2. Copy `.env.example` to `.env.local` and fill in the Supabase URL and anon key.
+3. Apply the schema with `supabase link --project-ref <ref>` then `supabase db push`, or paste `supabase/migrations/20261127000000_init.sql` into the Supabase SQL editor.
+4. Run `pnpm dev` and open http://localhost:3000.
+
+The only environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Both are public values and no service role key is used.
+
+## Auth flow
+
+The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user.
+
+## Deployment model
+
+Project names are derived from the repository, so nothing here is tied to one project. The bootstrap workflow sets `PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"` and creates or reuses the Vercel and Supabase projects with that exact name.
+
+Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
+
+Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. There are no per-repo variables.
+
+The bootstrap workflow creates the Supabase project in `ap-southeast-2` and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project.
+
+`supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
+
+## Using this as a template
+
+Generate a new repository from the template:
+
+https://github.com/jdnhlf/template-web
+
+Use "Use this template" in the GitHub UI, or run `gh repo create jdnhlf/<name> --template jdnhlf/template-web --private`.
+
+The three secrets are shared at the organisation level, so a new repository inherits them without any setup.
+
+Run the Bootstrap workflow once from the Actions tab. It creates the Vercel project and the Supabase project named `jdnhlf-<repo name>`, sets both public environment variables on the Vercel project and confirms the result in the log.
+
+That run is the only setup step a generated repository needs; pushes to `main` then deploy.

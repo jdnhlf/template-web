@@ -1,0 +1,234 @@
+name: Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Create Vercel and Supabase projects
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?Add the VERCEL_TOKEN organisation secret}"
+          : "${SUPABASE_ACCESS_TOKEN:?Add the SUPABASE_ACCESS_TOKEN organisation secret}"
+          : "${SUPABASE_DB_PASSWORD:?Add the SUPABASE_DB_PASSWORD organisation secret}"
+
+      - name: Create or reuse the Vercel project
+        id: vercel
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          name="jdnhlf-${GITHUB_REPOSITORY#*/}"
+          body="$(mktemp)"
+
+          status=$(curl -sS -o "$body" -w '%{http_code}' \
+            -X POST "https://api.vercel.com/v9/projects" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -nc --arg name "$name" '{name: $name}')")
+
+          case "$status" in
+            200 | 201)
+              project_id=$(jq -r '.id // empty' "$body")
+              ;;
+            400 | 409)
+              echo "Vercel project $name already exists, reusing it."
+              curl --fail-with-body -sS \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                "https://api.vercel.com/v9/projects?name=$name" > "$body"
+              project_id=$(jq -r 'first(.projects[] | .id) // empty' "$body")
+              ;;
+            *)
+              echo "Vercel project creation failed with HTTP $status" >&2
+              cat "$body" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$project_id" ]; then
+            echo "Could not determine the Vercel project id" >&2
+            cat "$body" >&2
+            exit 1
+          fi
+
+          echo "Vercel project $name is ready (id $project_id)."
+          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Vercel"
+            echo ""
+            echo "Project \`$name\` is ready."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create or reuse the Supabase project
+        id: supabase
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          name="jdnhlf-${GITHUB_REPOSITORY#*/}"
+          region="ap-southeast-2"
+          api="https://api.supabase.com/v1"
+          auth=(-H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+
+          curl --fail-with-body -sS "${auth[@]}" "$api/organizations" > /tmp/orgs.json
+          org_count=$(jq 'length' /tmp/orgs.json)
+
+          if [ "$org_count" -eq 0 ]; then
+            echo "No Supabase organizations found for this access token" >&2
+            exit 1
+          fi
+
+          if [ "$org_count" -gt 1 ]; then
+            echo "More than one Supabase organization found, refusing to guess:" >&2
+            jq -r '.[] | "  \(.id)  \(.name)"' /tmp/orgs.json >&2
+            exit 1
+          fi
+
+          org_id=$(jq -r '.[0].id' /tmp/orgs.json)
+
+          curl --fail-with-body -sS "${auth[@]}" "$api/projects" > /tmp/projects.json
+          project_ref=$(jq -r --arg name "$name" \
+            'first(.[] | select(.name == $name) | .id) // empty' /tmp/projects.json)
+
+          if [ -z "$project_ref" ]; then
+            jq -nc \
+              --arg org "$org_id" \
+              --arg name "$name" \
+              --arg pass "$SUPABASE_DB_PASSWORD" \
+              --arg region "$region" \
+              '{organization_id: $org, name: $name, db_pass: $pass, region: $region}' \
+              | curl --fail-with-body -sS "${auth[@]}" \
+                  -H "Content-Type: application/json" \
+                  --data-binary @- \
+                  -X POST "$api/projects" > /tmp/new-project.json
+            project_ref=$(jq -r '.id // empty' /tmp/new-project.json)
+          else
+            echo "Supabase project $name already exists, reusing $project_ref."
+          fi
+
+          if [ -z "$project_ref" ]; then
+            echo "Could not determine the Supabase project ref" >&2
+            cat /tmp/new-project.json >&2
+            exit 1
+          fi
+
+          for attempt in $(seq 1 60); do
+            curl --fail-with-body -sS "${auth[@]}" "$api/projects" > /tmp/projects.json
+            status=$(jq -r --arg ref "$project_ref" \
+              'first(.[] | select(.id == $ref) | .status) // empty' /tmp/projects.json)
+
+            if [ "$status" = "ACTIVE_HEALTHY" ]; then
+              echo "Supabase project $name is active in $region (ref $project_ref)."
+              echo "project_ref=$project_ref" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Supabase"
+                echo ""
+                echo "Project \`$name\` is active in $region."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            case "$status" in
+              *_FAILED | REMOVED)
+                echo "Supabase project $project_ref entered terminal state $status" >&2
+                exit 1
+                ;;
+            esac
+
+            echo "Supabase project $project_ref status: ${status:-unknown} (attempt $attempt of 60)"
+            sleep 10
+          done
+
+          echo "Timed out waiting for $project_ref to become ACTIVE_HEALTHY" >&2
+          exit 1
+
+      - name: Set Vercel environment variables
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_ID: ${{ steps.vercel.outputs.project_id }}
+          PROJECT_REF: ${{ steps.supabase.outputs.project_ref }}
+        run: |
+          set -euo pipefail
+
+          : "${PROJECT_ID:?The Vercel step did not return a project id}"
+          : "${PROJECT_REF:?The Supabase step did not return a project ref}"
+
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys?reveal=true" > /tmp/api-keys.json
+
+          anon_key=$(jq -r \
+            '[.[] | select(.type == "publishable") | .api_key] | first // empty' \
+            /tmp/api-keys.json)
+
+          if [ -z "$anon_key" ]; then
+            anon_key=$(jq -r \
+              '[.[] | select(.name == "anon") | .api_key] | first // empty' \
+              /tmp/api-keys.json)
+          fi
+
+          if [ -z "$anon_key" ]; then
+            echo "No publishable or anon key found for $PROJECT_REF:" >&2
+            cat /tmp/api-keys.json >&2
+            exit 1
+          fi
+
+          supabase_url="https://$PROJECT_REF.supabase.co"
+
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v10/projects/$PROJECT_ID/env" > /tmp/vercel-env.json
+
+          set_env() {
+            key="$1"
+            value="$2"
+
+            env_id=$(jq -r --arg key "$key" \
+              'first(.envs[] | select(.key == $key) | .id) // empty' /tmp/vercel-env.json)
+
+            if [ -n "$env_id" ]; then
+              jq -nc --arg value "$value" '{value: $value}' \
+                | curl --fail-with-body -sS -X PATCH \
+                    -H "Authorization: Bearer $VERCEL_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    --data-binary @- \
+                    "https://api.vercel.com/v9/projects/$PROJECT_ID/env/$env_id" > /dev/null
+              echo "Updated Vercel env var $key."
+            else
+              jq -nc --arg key "$key" --arg value "$value" \
+                '{key: $key, value: $value, type: "plain", target: ["production", "preview", "development"]}' \
+                | curl --fail-with-body -sS -X POST \
+                    -H "Authorization: Bearer $VERCEL_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    --data-binary @- \
+                    "https://api.vercel.com/v10/projects/$PROJECT_ID/env" > /dev/null
+              echo "Created Vercel env var $key."
+            fi
+          }
+
+          set_env NEXT_PUBLIC_SUPABASE_URL "$supabase_url"
+          set_env NEXT_PUBLIC_SUPABASE_ANON_KEY "$anon_key"
+
+          {
+            echo "### Vercel environment variables"
+            echo ""
+            echo "Set \`NEXT_PUBLIC_SUPABASE_URL\` and \`NEXT_PUBLIC_SUPABASE_ANON_KEY\` for production, preview and development."
+          } >> "$GITHUB_STEP_SUMMARY"

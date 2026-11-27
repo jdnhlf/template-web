@@ -1,0 +1,120 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      supabase: ${{ steps.filter.outputs.supabase }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            supabase:
+              - 'supabase/**'
+
+  migrate:
+    name: Apply Supabase migrations
+    needs: changes
+    if: needs.changes.outputs.supabase == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Link project and push migrations
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          : "${SUPABASE_ACCESS_TOKEN:?Add the SUPABASE_ACCESS_TOKEN organisation secret}"
+          : "${SUPABASE_DB_PASSWORD:?Add the SUPABASE_DB_PASSWORD organisation secret}"
+
+          PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"
+
+          projects=$(curl --fail-with-body -sS \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects")
+
+          project_ref=$(jq -r --arg name "$PROJECT_NAME" \
+            'first(.[] | select(.name == $name) | .id) // empty' <<< "$projects")
+
+          if [ -z "$project_ref" ]; then
+            echo "No Supabase project named $PROJECT_NAME. Run the Bootstrap workflow first." >&2
+            exit 1
+          fi
+
+          echo "Linking Supabase project $PROJECT_NAME ($project_ref)"
+          supabase link --project-ref "$project_ref" --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$SUPABASE_DB_PASSWORD" --yes
+
+  deploy:
+    name: Deploy to Vercel
+    needs: [changes, migrate]
+    if: ${{ always() && needs.changes.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel
+
+      - name: Link Vercel project
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          : "${VERCEL_TOKEN:?Add the VERCEL_TOKEN organisation secret}"
+
+          PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"
+          vercel link --yes --project "$PROJECT_NAME" --token "$VERCEL_TOKEN"
+
+      - name: Pull Vercel environment
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+
+      - name: Build
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token "$VERCEL_TOKEN"
+
+      - name: Deploy
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
