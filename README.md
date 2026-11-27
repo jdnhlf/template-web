@@ -23,7 +23,7 @@ The only environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_S
 
 ## Auth flow
 
-The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user.
+The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user. With email confirmation on, sign up redirects to `/auth/callback`, which exchanges the PKCE code for a session before sending the user to `/dashboard`.
 
 ## Deployment model
 
