@@ -65,8 +65,8 @@ jobs:
           fi
 
           echo "Linking Supabase project $PROJECT_NAME ($project_ref)"
-          supabase link --project-ref "$project_ref" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD" --yes
+          supabase link --project-ref "$project_ref"
+          supabase db push --remote --yes
 
   deploy:
     name: Deploy to Vercel
