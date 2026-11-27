@@ -29,7 +29,7 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 
 The environment variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the optional `NEXT_PUBLIC_APP_NAME`. All are public values and no service role key is used. The deploy workflow sets the app name from the repository name, and an explicit `NEXT_PUBLIC_APP_NAME` in the Vercel project overrides it.
 
-Tests are `pnpm test:unit` for Vitest and `pnpm test:e2e` for Playwright, which needs `pnpm build` first because it starts the production server.
+Tests are `pnpm test:unit` for Vitest and `pnpm test:e2e` for Playwright, which needs `pnpm build` first because it starts the production server. Run `pnpm format` after edits; `pnpm format:check` runs in CI and Prettier also sorts Tailwind classes.
 
 ## Auth flow
 

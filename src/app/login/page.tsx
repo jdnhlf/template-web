@@ -1,8 +1,6 @@
 import { LoginForm } from "./login-form";
 
-export default async function Login({
-  searchParams,
-}: PageProps<"/login">) {
+export default async function Login({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const nextParam = params.next;
   const next =

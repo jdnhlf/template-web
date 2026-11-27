@@ -38,7 +38,7 @@ export default async function Dashboard() {
       <div className="flex items-center gap-4 text-sm">
         <form action={signOut}>
           <button
-            className="rounded bg-foreground px-3 py-2 font-medium text-background"
+            className="bg-foreground text-background rounded px-3 py-2 font-medium"
             type="submit"
           >
             Sign out

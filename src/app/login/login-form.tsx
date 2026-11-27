@@ -74,7 +74,7 @@ export function LoginForm({
       ) : null}
 
       <button
-        className="w-full rounded bg-foreground px-3 py-2 text-sm font-medium text-background disabled:opacity-60"
+        className="bg-foreground text-background w-full rounded px-3 py-2 text-sm font-medium disabled:opacity-60"
         type="submit"
         disabled={pending}
       >
