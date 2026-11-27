@@ -37,6 +37,8 @@ The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside t
 
 `supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
 
+Three behaviours are worth knowing before changing the workflows: the Vercel project is created with the `nextjs` framework preset, because the default static preset fails a prebuilt deploy; the deploy step hides `.git` so Vercel does not attribute the deployment to the bot commit author, which Hobby cannot add as a member; and Supabase CLI 3.x reads the database password from `SUPABASE_DB_PASSWORD` rather than `--password`.
+
 ## Using this as a template
 
 Generate a new repository from the template:
