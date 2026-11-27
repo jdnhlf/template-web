@@ -282,7 +282,7 @@ jobs:
           jq -nc \
             --arg site "$site_url" \
             --arg list "$allow_list" \
-            '{site_url: $site, uri_allow_list: $list, mailer_autoconfirm: false}' \
+            '{site_url: $site, uri_allow_list: $list, mailer_autoconfirm: false, disable_signup: true}' \
             | curl --fail-with-body -sS -X PATCH \
                 -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
                 -H "Content-Type: application/json" \

@@ -4,7 +4,7 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 
 ## What is here
 
-- `src/app` has the public home page, `/login` for sign in and sign up, and `/dashboard` as the protected page.
+- `src/app` has the public home page, `/login` for sign in, `/dashboard` as the protected page and `/auth/callback` for the confirmation code exchange.
 - `src/lib/supabase/client.ts` creates the browser client for Client Components.
 - `src/lib/supabase/server.ts` creates a request-scoped server client for Server Components, Server Actions and Route Handlers.
 - `src/proxy.ts` refreshes the Supabase session on every request and redirects unauthenticated users from `/dashboard` to `/login`.
@@ -23,7 +23,7 @@ The only environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_S
 
 ## Auth flow
 
-The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user. With email confirmation on, sign up redirects to `/auth/callback`, which exchanges the PKCE code for a session before sending the user to `/dashboard`.
+The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user. Self-service sign up is disabled both in the UI and in the auth config, so accounts are created from the Supabase dashboard's Users page; the `/auth/callback` route exchanges the PKCE code for a session when a link does arrive. To allow sign up later, add the form back and set `disable_signup` to false.
 
 ## Deployment model
 
@@ -33,7 +33,7 @@ Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supaba
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
-The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain and allows localhost redirects. Email confirmation stays on, so a new sign-up needs a real inbox before the account can sign in.
+The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain, allows localhost redirects, keeps email confirmation on and disables self-service sign up.
 
 `supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
 

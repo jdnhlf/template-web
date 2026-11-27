@@ -17,7 +17,8 @@ export default async function Login({
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Use an email and password. Sign up creates a new account.
+          Sign in with the email and password of an account created in the
+          Supabase dashboard. Self-service sign up is disabled.
         </p>
       </div>
       <LoginForm

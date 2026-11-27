@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Mode = "signin" | "signup";
-
 export function LoginForm({
   next,
   initialMessage,
@@ -14,7 +12,6 @@ export function LoginForm({
   initialMessage: string | null;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -26,23 +23,13 @@ export function LoginForm({
     setMessage(null);
 
     const supabase = createClient();
-    const { data, error } =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-          });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       setMessage(error.message);
-      setPending(false);
-      return;
-    }
-
-    if (!data.session) {
-      setMessage("Check your email to confirm your account.");
       setPending(false);
       return;
     }
@@ -72,7 +59,7 @@ export function LoginForm({
           className="w-full rounded border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
           type="password"
           name="password"
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
+          autoComplete="current-password"
           minLength={6}
           required
           value={password}
@@ -91,25 +78,7 @@ export function LoginForm({
         type="submit"
         disabled={pending}
       >
-        {pending
-          ? "Working..."
-          : mode === "signin"
-            ? "Sign in"
-            : "Create account"}
-      </button>
-
-      <button
-        className="w-full text-sm text-zinc-600 underline dark:text-zinc-400"
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          setMode(mode === "signin" ? "signup" : "signin");
-          setMessage(null);
-        }}
-      >
-        {mode === "signin"
-          ? "No account? Sign up"
-          : "Already have an account? Sign in"}
+        {pending ? "Working..." : "Sign in"}
       </button>
     </form>
   );

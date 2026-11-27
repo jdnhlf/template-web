@@ -28,7 +28,7 @@ export default async function Home() {
         <p className="text-sm">
           Not signed in.{" "}
           <Link className="underline" href="/login">
-            Sign in or sign up
+            Sign in
           </Link>
         </p>
       )}
