@@ -25,6 +25,10 @@ The only environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_S
 
 The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user. Self-service sign up is disabled both in the UI and in the auth config, so accounts are created from the Supabase dashboard's Users page; the `/auth/callback` route exchanges the PKCE code for a session when a link does arrive. To allow sign up later, add the form back and set `disable_signup` to false.
 
+## Install as an app
+
+`src/app/manifest.ts` serves the web app manifest at `/manifest.webmanifest`, and `public/sw.js` is a hand-written service worker, registered by `src/components/register-service-worker.tsx` in production only. The install prompt and the offline behaviour cover the public shell only: the home page, the icons and the manifest. Everything behind auth needs the network. The dashboard and login HTML are deliberately never cached.
+
 ## Deployment model
 
 Project names are derived from the repository, so nothing here is tied to one project. The bootstrap workflow sets `PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"`, creates or reuses the Vercel project with that name, and finds or creates a Supabase organisation of the same name, because the Free plan caps each organisation at 2 active projects.
