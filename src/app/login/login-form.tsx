@@ -6,13 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({
+  next,
+  initialMessage,
+}: {
+  next: string;
+  initialMessage: string | null;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(initialMessage);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,7 +29,11 @@ export function LoginForm({ next }: { next: string }) {
     const { data, error } =
       mode === "signin"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          });
 
     if (error) {
       setMessage(error.message);

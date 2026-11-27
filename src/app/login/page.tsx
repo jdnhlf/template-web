@@ -20,7 +20,14 @@ export default async function Login({
           Use an email and password. Sign up creates a new account.
         </p>
       </div>
-      <LoginForm next={next} />
+      <LoginForm
+        next={next}
+        initialMessage={
+          params.error === "confirmation"
+            ? "That confirmation link could not be used. Try signing in again."
+            : null
+        }
+      />
     </main>
   );
 }
