@@ -2,6 +2,14 @@
 
 A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email and password auth through Supabase, row level security on a `profiles` table, and GitHub Actions that provision and deploy to Vercel.
 
+## First steps after generating
+
+1. Confirm the app name. Bootstrap sets `NEXT_PUBLIC_APP_NAME` to the repository name; change that Vercel environment variable to override it.
+2. Replace `public/icons/icon-192.png` and `public/icons/icon-512.png`.
+3. Rewrite the opening paragraph above.
+4. Decide whether self-service sign up stays off. Turning it on means restoring the form in `src/app/login` and setting `disable_signup` to false.
+5. Run the Bootstrap workflow once.
+
 ## What is here
 
 - `src/app` has the public home page, `/login` for sign in, `/dashboard` as the protected page and `/auth/callback` for the confirmation code exchange.
@@ -19,7 +27,7 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 3. Apply the schema with `supabase link --project-ref <ref>` then `supabase db push`, or paste `supabase/migrations/20261127000000_init.sql` into the Supabase SQL editor.
 4. Run `pnpm dev` and open http://localhost:3000.
 
-The only environment variables are `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Both are public values and no service role key is used.
+The environment variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the optional `NEXT_PUBLIC_APP_NAME`. All are public values and no service role key is used. The app name comes from `NEXT_PUBLIC_APP_NAME` and otherwise from the Vercel production domain with the `jdnhlf-` prefix stripped.
 
 ## Auth flow
 
@@ -37,7 +45,7 @@ Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supaba
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
-The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain, allows localhost redirects, keeps email confirmation on and disables self-service sign up.
+The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_NAME` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain, allows localhost redirects, keeps email confirmation on and disables self-service sign up.
 
 `supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
 

@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next";
+import { appName } from "@/lib/app-name";
 
 export default function manifest(): MetadataRoute.Manifest {
+  const name = appName();
+
   return {
-    name: "template-web",
-    short_name: "template-web",
+    name,
+    short_name: name,
     description: "Next.js and Supabase starter",
     start_url: "/",
     display: "standalone",
