@@ -259,11 +259,12 @@ jobs:
 
           set_env NEXT_PUBLIC_SUPABASE_URL "$supabase_url"
           set_env NEXT_PUBLIC_SUPABASE_ANON_KEY "$anon_key"
+          set_env NEXT_PUBLIC_APP_NAME "${GITHUB_REPOSITORY#*/}"
 
           {
             echo "### Vercel environment variables"
             echo ""
-            echo "Set \`NEXT_PUBLIC_SUPABASE_URL\` and \`NEXT_PUBLIC_SUPABASE_ANON_KEY\` for production, preview and development."
+            echo "Set \`NEXT_PUBLIC_SUPABASE_URL\`, \`NEXT_PUBLIC_SUPABASE_ANON_KEY\` and \`NEXT_PUBLIC_APP_NAME\` for production, preview and development."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Configure Supabase auth URLs

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { appName } from "@/lib/app-name";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -10,7 +11,7 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-6 py-16">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">template-web</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{appName()}</h1>
         <p className="text-zinc-600 dark:text-zinc-400">
           Next.js and Supabase starter with email and password auth, row level
           security and CI deploys.
