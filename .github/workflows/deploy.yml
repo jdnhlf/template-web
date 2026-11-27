@@ -111,7 +111,13 @@ jobs:
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel build --prod --token "$VERCEL_TOKEN"
+        run: |
+          set -euo pipefail
+
+          : "${VERCEL_TOKEN:?Add the VERCEL_TOKEN organisation secret}"
+
+          export NEXT_PUBLIC_APP_NAME="${GITHUB_REPOSITORY#*/}"
+          vercel build --prod --token "$VERCEL_TOKEN"
 
       - name: Deploy
         shell: bash

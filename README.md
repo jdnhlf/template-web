@@ -27,7 +27,7 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 3. Apply the schema with `supabase link --project-ref <ref>` then `supabase db push`, or paste `supabase/migrations/20261127000000_init.sql` into the Supabase SQL editor.
 4. Run `pnpm dev` and open http://localhost:3000.
 
-The environment variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the optional `NEXT_PUBLIC_APP_NAME`. All are public values and no service role key is used. The app name comes from `NEXT_PUBLIC_APP_NAME` and otherwise from the Vercel production domain with the `jdnhlf-` prefix stripped.
+The environment variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the optional `NEXT_PUBLIC_APP_NAME`. All are public values and no service role key is used. The deploy workflow sets the app name from the repository name, and an explicit `NEXT_PUBLIC_APP_NAME` in the Vercel project overrides it.
 
 ## Auth flow
 

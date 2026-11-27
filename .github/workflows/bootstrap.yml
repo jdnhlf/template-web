@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
 
-          jq -nc '{framework: "nextjs"}' \
+          jq -nc '{framework: "nextjs", autoExposeSystemEnvs: true}' \
             | curl --fail-with-body -sS -X PATCH \
                 -H "Authorization: Bearer $VERCEL_TOKEN" \
                 -H "Content-Type: application/json" \
