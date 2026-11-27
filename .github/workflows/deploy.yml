@@ -120,11 +120,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Hobby teams cannot add members, so a deployment carrying the bot commit author is blocked; deploying outside the checkout drops that attribution.
-          deploy_dir=$(mktemp -d)
-          cp -r .vercel "$deploy_dir/.vercel"
+          # Hobby teams cannot add members, so a deployment carrying the bot commit author is blocked; hiding the checkout drops that attribution.
+          mv .git .git-no-vercel
+          trap 'mv .git-no-vercel .git' EXIT
 
-          cd "$deploy_dir"
           vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" | tee /tmp/deploy-url
 
           {
