@@ -33,7 +33,7 @@ Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supaba
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
-The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project.
+The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain and allows localhost redirects. Email confirmation stays on, so a new sign-up needs a real inbox before the account can sign in.
 
 `supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
 

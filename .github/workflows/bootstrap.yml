@@ -265,3 +265,29 @@ jobs:
             echo ""
             echo "Set \`NEXT_PUBLIC_SUPABASE_URL\` and \`NEXT_PUBLIC_SUPABASE_ANON_KEY\` for production, preview and development."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure Supabase auth URLs
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ steps.supabase.outputs.project_ref }}
+        run: |
+          set -euo pipefail
+
+          : "${PROJECT_REF:?The Supabase step did not return a project ref}"
+
+          site_url="https://jdnhlf-${GITHUB_REPOSITORY#*/}.vercel.app"
+          allow_list="$site_url,$site_url/**,http://localhost:3000,http://localhost:3000/**"
+
+          jq -nc \
+            --arg site "$site_url" \
+            --arg list "$allow_list" \
+            '{site_url: $site, uri_allow_list: $list, mailer_autoconfirm: false}' \
+            | curl --fail-with-body -sS -X PATCH \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary @- \
+                "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" > /tmp/auth-config.json
+
+          echo "Site URL is now $(jq -r '.site_url' /tmp/auth-config.json)."
+          echo "Allowed redirects: $(jq -r '.uri_allow_list' /tmp/auth-config.json)"
