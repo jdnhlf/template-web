@@ -31,7 +31,7 @@ Project names are derived from the repository, so nothing here is tied to one pr
 
 Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
 
-Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. There are no per-repo variables.
+Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
 The bootstrap workflow creates the Supabase project in `ap-southeast-2` and sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` on the Vercel project for production, preview and development, which the build pulls from the linked project.
 
@@ -43,9 +43,9 @@ Generate a new repository from the template:
 
 https://github.com/jdnhlf/template-web
 
-Use "Use this template" in the GitHub UI, or run `gh repo create jdnhlf/<name> --template jdnhlf/template-web --private`.
+Use "Use this template" in the GitHub UI, or run `gh repo create jdnhlf/<name> --template jdnhlf/template-web --public`.
 
-The three secrets are shared at the organisation level, so a new repository inherits them without any setup.
+The three secrets are organisation-wide with access set to all repositories, so a new repository inherits them without any setup. Repositories are public, which is also what makes organisation secrets available on the Free plan.
 
 Run the Bootstrap workflow once from the Actions tab. It creates the Vercel project and the Supabase project named `jdnhlf-<repo name>`, sets both public environment variables on the Vercel project and confirms the result in the log.
 
