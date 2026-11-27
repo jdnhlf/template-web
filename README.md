@@ -29,6 +29,8 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 
 The environment variables are `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and the optional `NEXT_PUBLIC_APP_NAME`. All are public values and no service role key is used. The deploy workflow sets the app name from the repository name, and an explicit `NEXT_PUBLIC_APP_NAME` in the Vercel project overrides it.
 
+Tests are `pnpm test:unit` for Vitest and `pnpm test:e2e` for Playwright, which needs `pnpm build` first because it starts the production server.
+
 ## Auth flow
 
 The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed cookies onto the response and redirects signed-out users away from protected paths. Server Components call `supabase.auth.getUser()` before rendering user data, so the check does not rely on the proxy alone. The sign up trigger in `supabase/migrations` inserts a row into `profiles`, and row level security limits reads and updates to the owning user. Self-service sign up is disabled both in the UI and in the auth config, so accounts are created from the Supabase dashboard's Users page; the `/auth/callback` route exchanges the PKCE code for a session when a link does arrive. To allow sign up later, add the form back and set `disable_signup` to false.
@@ -41,7 +43,7 @@ The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed co
 
 Project names are derived from the repository, so nothing here is tied to one project. The bootstrap workflow sets `PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"`, creates or reuses the Vercel project with that name, and finds or creates a Supabase organisation of the same name, because the Free plan caps each organisation at 2 active projects.
 
-Every push to `main` runs `deploy.yml`. The `migrate` job runs only when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
+Every push to `main` runs `deploy.yml`. The `test` job runs the Vitest unit suite with `pnpm test:unit`, then installs chromium, builds the app and runs the Playwright suite with `pnpm test:e2e` against `pnpm start`; it gates the deploy, so a failing test blocks it. The browser suite runs chromium only. The `migrate` job runs only when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 

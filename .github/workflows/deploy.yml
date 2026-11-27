@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -68,10 +68,52 @@ jobs:
           supabase link --project-ref "$project_ref"
           supabase db push --remote --yes
 
+  test:
+    name: End-to-end tests
+    needs: changes
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run end-to-end tests
+        run: pnpm test:e2e
+
   deploy:
     name: Deploy to Vercel
-    needs: [changes, migrate]
-    if: ${{ always() && needs.changes.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
+    needs: [changes, test, migrate]
+    if: ${{ always() && needs.changes.result == 'success' && needs.test.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
