@@ -38,7 +38,7 @@ jobs:
             -X POST "https://api.vercel.com/v9/projects" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$(jq -nc --arg name "$name" '{name: $name}')")
+            -d "$(jq -nc --arg name "$name" '{name: $name, framework: "nextjs"}')")
 
           case "$status" in
             200 | 201)
@@ -63,6 +63,13 @@ jobs:
             cat "$body" >&2
             exit 1
           fi
+
+          jq -nc '{framework: "nextjs"}' \
+            | curl --fail-with-body -sS -X PATCH \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary @- \
+                "https://api.vercel.com/v9/projects/$project_id" > /dev/null
 
           echo "Vercel project $name is ready (id $project_id)."
           echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
