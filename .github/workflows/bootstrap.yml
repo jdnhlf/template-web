@@ -87,20 +87,46 @@ jobs:
           auth=(-H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
 
           curl --fail-with-body -sS "${auth[@]}" "$api/organizations" > /tmp/orgs.json
-          org_count=$(jq 'length' /tmp/orgs.json)
+          org_id=$(jq -r --arg name "$name" \
+            'first(.[] | select(.name == $name) | (.slug // .id)) // empty' /tmp/orgs.json)
 
-          if [ "$org_count" -eq 0 ]; then
-            echo "No Supabase organizations found for this access token" >&2
-            exit 1
+          if [ -n "$org_id" ]; then
+            echo "Reusing Supabase organization $name ($org_id)."
+          else
+            echo "Creating Supabase organization $name"
+            status=$(jq -nc --arg name "$name" '{name: $name}' \
+              | curl -sS -o /tmp/new-org.json -w '%{http_code}' "${auth[@]}" \
+                  -H "Content-Type: application/json" \
+                  --data-binary @- \
+                  -X POST "$api/organizations")
+
+            case "$status" in
+              201)
+                org_id=$(jq -r '.slug // .id // empty' /tmp/new-org.json)
+                ;;
+              400 | 409)
+                curl --fail-with-body -sS "${auth[@]}" "$api/organizations" > /tmp/orgs.json
+                org_id=$(jq -r --arg name "$name" \
+                  'first(.[] | select(.name == $name) | (.slug // .id)) // empty' /tmp/orgs.json)
+                ;;
+              401 | 403)
+                echo "The access token cannot create organizations (HTTP $status)." >&2
+                echo "Give SUPABASE_ACCESS_TOKEN the organizations_create permission, or create an organization named $name by hand." >&2
+                cat /tmp/new-org.json >&2
+                exit 1
+                ;;
+              *)
+                echo "Creating the Supabase organization failed with HTTP $status" >&2
+                cat /tmp/new-org.json >&2
+                exit 1
+                ;;
+            esac
           fi
 
-          if [ "$org_count" -gt 1 ]; then
-            echo "More than one Supabase organization found, refusing to guess:" >&2
-            jq -r '.[] | "  \(.id)  \(.name)"' /tmp/orgs.json >&2
+          if [ -z "$org_id" ]; then
+            echo "Could not resolve or create the Supabase organization $name" >&2
             exit 1
           fi
-
-          org_id=$(jq -r '.[0].id' /tmp/orgs.json)
 
           curl --fail-with-body -sS "${auth[@]}" "$api/projects" > /tmp/projects.json
           project_ref=$(jq -r --arg name "$name" \
@@ -139,7 +165,7 @@ jobs:
               {
                 echo "### Supabase"
                 echo ""
-                echo "Project \`$name\` is active in $region."
+                echo "Project \`$name\` is active in $region, inside organization \`$name\`."
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
