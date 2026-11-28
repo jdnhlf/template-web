@@ -48,8 +48,8 @@ jobs:
               echo "Vercel project $name already exists, reusing it."
               curl --fail-with-body -sS \
                 -H "Authorization: Bearer $VERCEL_TOKEN" \
-                "https://api.vercel.com/v9/projects?name=$name" > "$body"
-              project_id=$(jq -r 'first(.projects[] | .id) // empty' "$body")
+                "https://api.vercel.com/v9/projects/$name" > "$body"
+              project_id=$(jq -r '.id // empty' "$body")
               ;;
             *)
               echo "Vercel project creation failed with HTTP $status" >&2
