@@ -3,10 +3,12 @@ name: Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -30,7 +32,7 @@ jobs:
   migrate:
     name: Apply Supabase migrations
     needs: changes
-    if: needs.changes.outputs.supabase == 'true'
+    if: ${{ github.event_name != 'pull_request' && needs.changes.outputs.supabase == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -69,7 +71,7 @@ jobs:
           supabase db push --remote --yes
 
   test:
-    name: End-to-end tests
+    name: Checks
     needs: changes
     runs-on: ubuntu-latest
     env:
@@ -116,7 +118,7 @@ jobs:
   deploy:
     name: Deploy to Vercel
     needs: [changes, test, migrate]
-    if: ${{ always() && needs.changes.result == 'success' && needs.test.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
+    if: ${{ always() && github.event_name != 'pull_request' && needs.changes.result == 'success' && needs.test.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
