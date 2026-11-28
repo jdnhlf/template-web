@@ -18,7 +18,7 @@ A small Next.js and Supabase starter: app router, TypeScript, Tailwind, email an
 - `src/proxy.ts` refreshes the Supabase session on every request and redirects unauthenticated users from `/dashboard` to `/login`.
 - `supabase/migrations` holds the schema, applied with `supabase db push`.
 - `.github/workflows/bootstrap.yml` provisions the Vercel and Supabase projects once.
-- `.github/workflows/deploy.yml` applies migrations and deploys on every push to `main`.
+- `.github/workflows/deploy.yml` runs the checks on pull requests, then applies migrations and deploys on every push to `main`.
 
 ## Local setup
 
@@ -43,7 +43,7 @@ The proxy calls `supabase.auth.getClaims()` on each request, writes refreshed co
 
 Project names are derived from the repository, so nothing here is tied to one project. The bootstrap workflow sets `PROJECT_NAME="jdnhlf-${GITHUB_REPOSITORY#*/}"`, creates or reuses the Vercel project with that name, and finds or creates a Supabase organisation of the same name, because the Free plan caps each organisation at 2 active projects.
 
-Every push to `main` runs `deploy.yml`. The `test` job runs the Vitest unit suite with `pnpm test:unit`, then installs chromium, builds the app and runs the Playwright suite with `pnpm test:e2e` against `pnpm start`; it gates the deploy, so a failing test blocks it. The browser suite runs chromium only. The `migrate` job runs only when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
+Every pull request runs the workflow named `CI`. `Format`, `Lint`, `Unit tests` and `End-to-end tests` are separate jobs, so a pull request names the stage that failed, and branch protection requires all four. The end-to-end job installs chromium, builds the app and runs the Playwright suite with `pnpm test:e2e` against `pnpm start`; the browser suite runs chromium only. The `migrate` job runs only on a push when `supabase/**` changed; it looks the Supabase project up by name through the management API, links it and applies pending migrations with `supabase db push`. The `deploy` job links the Vercel project by name with `vercel link`, pulls the production environment, builds with `vercel build --prod` and ships with `vercel deploy --prebuilt --prod`.
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
