@@ -271,14 +271,43 @@ jobs:
         shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PROJECT_REF: ${{ steps.supabase.outputs.project_ref }}
+          PROJECT_ID: ${{ steps.vercel.outputs.project_id }}
+          SITE_URL_OVERRIDE: ${{ vars.SUPABASE_SITE_URL }}
         run: |
           set -euo pipefail
 
           : "${PROJECT_REF:?The Supabase step did not return a project ref}"
+          : "${PROJECT_ID:?The Vercel step did not return a project id}"
 
-          site_url="https://jdnhlf-${GITHUB_REPOSITORY#*/}.vercel.app"
-          allow_list="$site_url,$site_url/**,http://localhost:3000,http://localhost:3000/**"
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$PROJECT_ID/domains" > /tmp/domains.json
+
+          custom_domain=$(jq -r \
+            '[.domains[] | select((.verified | tostring) == "true") | select(.redirect == null) | .name | select(endswith(".vercel.app") | not)] | first // empty' \
+            /tmp/domains.json)
+          default_domain=$(jq -r \
+            '[.domains[] | select((.verified | tostring) == "true") | .name | select(endswith(".vercel.app"))] | first // empty' \
+            /tmp/domains.json)
+
+          if [ -n "$SITE_URL_OVERRIDE" ]; then
+            site_url=${SITE_URL_OVERRIDE%/}
+            echo "Using SUPABASE_SITE_URL from the repository variable."
+          elif [ -n "$custom_domain" ]; then
+            site_url="https://$custom_domain"
+          elif [ -n "$default_domain" ]; then
+            site_url="https://$default_domain"
+          else
+            site_url="https://jdnhlf-${GITHUB_REPOSITORY#*/}.vercel.app"
+          fi
+
+          allow_list="$site_url,$site_url/**"
+          if [ -n "$default_domain" ] && [ "https://$default_domain" != "$site_url" ]; then
+            allow_list="$allow_list,https://$default_domain,https://$default_domain/**"
+          fi
+          allow_list="$allow_list,http://localhost:3000,http://localhost:3000/**"
 
           jq -nc \
             --arg site "$site_url" \
