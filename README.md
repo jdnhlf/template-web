@@ -47,7 +47,7 @@ Every push to `main` runs `deploy.yml`. The `test` job runs the Vitest unit suit
 
 Only three organisation secrets are required: `VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Set their repository access to all repositories, since on GitHub Free organisation secrets do not reach private repositories. There are no per-repo variables.
 
-The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_NAME` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also sets the Supabase auth site URL to the Vercel domain, allows localhost redirects, keeps email confirmation on and disables self-service sign up.
+The bootstrap workflow creates the Supabase project in `ap-southeast-2` inside the matching organisation and sets `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_APP_NAME` on the Vercel project for production, preview and development, which the build pulls from the linked project. It also points the Supabase auth site URL at the project's verified production domain, preferring a custom domain over `*.vercel.app`, and allows localhost redirects; set the `SUPABASE_SITE_URL` repository variable to override it. Email confirmation stays on and self-service sign up is off.
 
 `supabase/config.toml` keeps a placeholder `project_id` for local runs. CI links with `--project-ref`, so the placeholder value is not used there.
 
